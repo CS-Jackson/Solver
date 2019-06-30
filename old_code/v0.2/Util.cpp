@@ -14,6 +14,12 @@ int setnonblocking( int fd )
     return old_option;
 }
 
+void SetCloseOnExec(int sockfd){
+    int flags=fcntl(sockfd,F_GETFD,0);
+    flags|=FD_CLOEXEC;
+    fcntl(sockfd,F_SETFL,flags);
+}
+
 void addfd( int epollfd, int fd )
 {
     epoll_event event;

@@ -1,5 +1,4 @@
 #include "http_conn.h"
-#include "Util.h"
 
 const char* ok_200_title = "OK";
 const char* error_400_title = "Bad Request";
@@ -10,8 +9,42 @@ const char* error_404_title = "Not Found";
 const char* error_404_form = "The requested file was not found on this server.\n";
 const char* error_500_title = "Internal Error";
 const char* error_500_form = "There was an unusual problem serving the requested file.\n";
-const char* doc_root = "/var/www/html";
+const char* doc_root = "index.html";
 
+int setnonblocking( int fd )
+{
+    int old_option = fcntl( fd, F_GETFL );
+    int new_option = old_option | O_NONBLOCK;
+    fcntl( fd, F_SETFL, new_option );
+    return old_option;
+}
+
+void addfd( int epollfd, int fd, bool one_shot )
+{
+    epoll_event event;
+    event.data.fd = fd;
+    event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+    if( one_shot )
+    {
+        event.events |= EPOLLONESHOT;
+    }
+    epoll_ctl( epollfd, EPOLL_CTL_ADD, fd, &event );
+    setnonblocking( fd );
+}
+
+void removefd( int epollfd, int fd )
+{
+    epoll_ctl( epollfd, EPOLL_CTL_DEL, fd, 0 );
+    close( fd );
+}
+
+void modfd( int epollfd, int fd, int ev )
+{
+    epoll_event event;
+    event.data.fd = fd;
+    event.events = ev | EPOLLET | EPOLLONESHOT | EPOLLRDHUP;
+    epoll_ctl( epollfd, EPOLL_CTL_MOD, fd, &event );
+}
 
 int http_conn::m_user_count = 0;
 int http_conn::m_epollfd = -1;
@@ -34,8 +67,8 @@ void http_conn::init( int sockfd, const sockaddr_in& addr )
     int error = 0;
     socklen_t len = sizeof( error );
     getsockopt( m_sockfd, SOL_SOCKET, SO_ERROR, &error, &len );
-    int reuse = 1;
-    setsockopt( m_sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof( reuse ) );
+    // int reuse = 1;
+    // setsockopt( m_sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof( reuse ) );
     addfd( m_epollfd, sockfd, true );
     m_user_count++;
 
@@ -60,7 +93,7 @@ void http_conn::init()
     memset( m_write_buf, '\0', WRITE_BUFFER_SIZE );
     memset( m_real_file, '\0', FILENAME_LEN );
 }
-
+//从状态机
 http_conn::LINE_STATUS http_conn::parse_line()
 {
     char temp;
@@ -97,6 +130,7 @@ http_conn::LINE_STATUS http_conn::parse_line()
     return LINE_OPEN;
 }
 
+//读取客户数据，直到无数据可读。
 bool http_conn::read()
 {
     if( m_read_idx >= READ_BUFFER_SIZE )
@@ -125,7 +159,7 @@ bool http_conn::read()
     }
     return true;
 }
-
+//解析HTTP请求行，获得请求方法、目标URL、以及HTTP版本号。
 http_conn::HTTP_CODE http_conn::parse_request_line( char* text )
 {
     m_url = strpbrk( text, " \t" );
@@ -230,7 +264,7 @@ http_conn::HTTP_CODE http_conn::parse_content( char* text )
 
     return NO_REQUEST;
 }
-
+//主状态机
 http_conn::HTTP_CODE http_conn::process_read()
 {
     LINE_STATUS line_status = LINE_OK;
@@ -322,7 +356,7 @@ void http_conn::unmap()
         m_file_address = 0;
     }
 }
-
+//写HTTP响应
 bool http_conn::write()
 {
     int temp = 0;
@@ -368,7 +402,7 @@ bool http_conn::write()
         }
     }
 }
-
+//往写缓冲区写入待发送的数据
 bool http_conn::add_response( const char* format, ... )
 {
     if( m_write_idx >= WRITE_BUFFER_SIZE )
@@ -418,7 +452,7 @@ bool http_conn::add_content( const char* content )
 {
     return add_response( "%s", content );
 }
-
+//根据服务器处理HTTP请求的结果，决定返回给客户端的内容
 bool http_conn::process_write( HTTP_CODE ret )
 {
     switch ( ret )

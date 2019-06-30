@@ -9,6 +9,8 @@ static int pipefd[2];
 static int epollfd = 0;
 
 int setnonblocking( int fd );
+void SetCloseOnExec(int sockfd);
+
 void addfd( int epollfd, int fd );
 void addfd( int epollfd, int fd, bool oneshot);
 void removefd( int epollfd, int fd );

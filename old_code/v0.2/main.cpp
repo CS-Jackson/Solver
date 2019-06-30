@@ -10,17 +10,28 @@
 #include <cassert>
 #include <sys/epoll.h>
 
-#include "Util.h"
-// #include "locker.h"
+#include "locker.h"
 #include "threadpool.h"
 #include "http_conn.h"
 
 #define MAX_FD 65536
-#define MAX_EVENT_NUMBER 1024
+#define MAX_EVENT_NUMBER 10000
 
-extern void addfd(int epollfd, int fd, bool one_shot);
-extern void removefd(int epollfd, int fd);
-extern void handle_for_pipe();
+extern int addfd( int epollfd, int fd, bool one_shot );
+extern int removefd( int epollfd, int fd );
+
+void addsig( int sig, void( handler )(int), bool restart = true )
+{
+    struct sigaction sa;
+    memset( &sa, '\0', sizeof( sa ) );
+    sa.sa_handler = handler;
+    if( restart )
+    {
+        sa.sa_flags |= SA_RESTART;
+    }
+    sigfillset( &sa.sa_mask );
+    assert( sigaction( sig, &sa, NULL ) != -1 );
+}
 
 void show_error( int connfd, const char* info )
 {
@@ -40,8 +51,7 @@ int main( int argc, char* argv[] )
     const char* ip = argv[1];
     int port = atoi( argv[2] );
 
-    // addsig( SIGPIPE, SIG_IGN );
-    handle_for_pipe();
+    addsig( SIGPIPE, SIG_IGN );
 
     threadpool< http_conn >* pool = NULL;
     try
