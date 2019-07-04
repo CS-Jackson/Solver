@@ -9,7 +9,8 @@ const char* error_404_title = "Not Found";
 const char* error_404_form = "The requested file was not found on this server.\n";
 const char* error_500_title = "Internal Error";
 const char* error_500_form = "There was an unusual problem serving the requested file.\n";
-const char* doc_root = "index.html";
+const char* doc_root = ".";
+int webbench = 0;
 
 int setnonblocking( int fd )
 {
@@ -64,9 +65,7 @@ void http_conn::init( int sockfd, const sockaddr_in& addr )
 {
     m_sockfd = sockfd;
     m_address = addr;
-    int error = 0;
-    socklen_t len = sizeof( error );
-    getsockopt( m_sockfd, SOL_SOCKET, SO_ERROR, &error, &len );
+    
     // int reuse = 1;
     // setsockopt( m_sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof( reuse ) );
     addfd( m_epollfd, sockfd, true );
@@ -187,10 +186,10 @@ http_conn::HTTP_CODE http_conn::parse_request_line( char* text )
     }
     *m_version++ = '\0';
     m_version += strspn( m_version, " \t" );
-    if ( strcasecmp( m_version, "HTTP/1.1" ) != 0 )
-    {
-        return BAD_REQUEST;
-    }
+    // if ( strcasecmp( m_version, "HTTP/1.1" ) != 0 )
+    // {
+    //     return BAD_REQUEST;
+    // }
 
     if ( strncasecmp( m_url, "http://", 7 ) == 0 )
     {
@@ -223,6 +222,19 @@ http_conn::HTTP_CODE http_conn::parse_headers( char* text )
         }
 
         return GET_REQUEST;
+    }
+    else if ( strncasecmp( text, "User-Agent:", 11) == 0){
+        text += 11;
+        text += strspn( text, " \t" );
+        if ( strcasecmp( text, "WebBench 1.5" ) == 0 )
+        {
+            webbench += 1;
+            if(webbench > 10000){
+                webbench = 0;
+            }
+            //std::cout << webbench << std::endl;
+            return GET_REQUEST;
+        }
     }
     else if ( strncasecmp( text, "Connection:", 11 ) == 0 )
     {
@@ -276,7 +288,7 @@ http_conn::HTTP_CODE http_conn::process_read()
     {
         text = get_line();
         m_start_line = m_checked_idx;
-        printf( "got 1 http line: %s\n", text );
+        // printf( "got 1 http line: %s\n", text );
 
         switch ( m_check_state )
         {
@@ -286,6 +298,10 @@ http_conn::HTTP_CODE http_conn::process_read()
                 if ( ret == BAD_REQUEST )
                 {
                     return BAD_REQUEST;
+                }
+                if ((m_method == GET) && ( ( line_status = parse_line() ) != LINE_OK )){
+                    
+                    return do_request();
                 }
                 break;
             }
@@ -318,7 +334,7 @@ http_conn::HTTP_CODE http_conn::process_read()
             }
         }
     }
-
+    m_check_state = CHECK_STATE_REQUESTLINE;
     return NO_REQUEST;
 }
 
@@ -326,6 +342,7 @@ http_conn::HTTP_CODE http_conn::do_request()
 {
     strcpy( m_real_file, doc_root );
     int len = strlen( doc_root );
+    //这一步相遇 doc_root + '/'，后面接对应的文件。此时m_url 是 '/'。
     strncpy( m_real_file + len, m_url, FILENAME_LEN - len - 1 );
     if ( stat( m_real_file, &m_file_stat ) < 0 )
     {
@@ -379,6 +396,7 @@ bool http_conn::write()
                 modfd( m_epollfd, m_sockfd, EPOLLOUT );
                 return true;
             }
+            printf("Writev fail");
             unmap();
             return false;
         }
@@ -534,16 +552,21 @@ bool http_conn::process_write( HTTP_CODE ret )
 
 void http_conn::process()
 {
+    //printf("Begin reading ret\n");
     HTTP_CODE read_ret = process_read();
+    //printf("Finish reading ret\n");
     if ( read_ret == NO_REQUEST )
     {
         modfd( m_epollfd, m_sockfd, EPOLLIN );
         return;
     }
 
+    //printf("Begin writing ret\n");
     bool write_ret = process_write( read_ret );
+    //printf("Finish writing ret\n");
     if ( ! write_ret )
     {
+        printf("Write error.");
         close_conn();
     }
 

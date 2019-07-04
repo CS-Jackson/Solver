@@ -69,8 +69,15 @@ int main( int argc, char* argv[] )
 
     int listenfd = socket( PF_INET, SOCK_STREAM, 0 );
     assert( listenfd >= 0 );
-    struct linger tmp = { 1, 0 };
-    setsockopt( listenfd, SOL_SOCKET, SO_LINGER, &tmp, sizeof( tmp ) );
+
+    // struct linger tmp = { 1, 0 };
+    // setsockopt( listenfd, SOL_SOCKET, SO_LINGER, &tmp, sizeof( tmp ) );
+    
+    // 消除bind时"Address already in use"错误
+    int optval = 1;
+    if(setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&optval, sizeof(int)) == -1){
+        return -1;
+    }
 
     int ret = 0;
     struct sockaddr_in address;
