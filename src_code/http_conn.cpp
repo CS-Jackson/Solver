@@ -3,6 +3,7 @@
 #include <sys/epoll.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <unordered_map>
@@ -169,7 +170,7 @@ void Solver::handleRequest()
         if (state == STATE_PARSE_HEADERS)
         {
             int flag = this->parse_Headers();
-            if ( flag == PARSE_HEADER_ERROR){
+            if ( flag == PARSE_HEADER_AGAIN){
                 break;
             }
             else if (flag == PARSE_HEADER_ERROR){
@@ -238,7 +239,7 @@ void Solver::handleRequest()
         }
     }
     //加入定时器，在添加EPOLLIN事件前加入；
-    shared_ptr<mytimer> mtimer(new mytimer(shared_from_this(), 500));
+    shared_ptr<mytimer> mtimer(new mytimer(shared_from_this(), EPOLL_WAIT_TIME));
     this->addTimer(mtimer);
     {
         MutexLockGuard lock;        //RAII锁
@@ -381,13 +382,178 @@ int Solver::parse_Headers()
                 }
                 break;
             }
-            case h_space_after_colon:
+            case h_spaces_after_colon:
             {
                 h_state = h_value;
                 value_start = i;
                 break;
             }
+            case h_value:
+            {
+                if(str[i] == '\r'){
+                    h_state = h_CR;
+                    value_end = i;
+                    if (value_end - value_start <= 0){
+                        return PARSE_HEADER_ERROR;
+                    }
+                }
+                else if (i - value_start > 255){//?
+                    return PARSE_HEADER_ERROR;
+                }
+            }
+            case h_CR:
+            {
+                if(str[i] == '\n'){
+                    h_state = h_LF;
+                    string key(str.begin() + key_start, str.begin() + key_end);
+                    string value(str.begin() + value_start, str.begin() + value_end);
+                    headers[key] = value;
+                    now_read_line_begin = i;
+                }
+                else {
+                    return PARSE_HEADER_ERROR;
+                }
+                break;
+            }
+            case h_LF:
+            {
+                if (str[i] == '\r')
+                {
+                    h_state = h_end_CR;
+                }
+                else{
+                    key_start = i;
+                    h_state = h_key;
+                }
+                break;
+            }
+            case h_end_CR:
+            {
+                if(str[i] == '\n'){
+                    h_state = h_end_LF;
+                }
+                else{
+                    return PARSE_HEADER_ERROR;
+                }
+                break;
+            }
+            case h_end_LF:
+            {
+                notFinish = false;
+                key_start = i;
+                now_read_line_begin = i;
+                break;
+            }
         }
     }
+    if(h_state == h_end_LF){
+        str = str.substr(now_read_line_begin);
+        return PARSE_HEADER_SUCCESS;
+    }
+    str = str.substr(now_read_line_begin);
+    return PARSE_HEADER_AGAIN;
 }
 
+int Solver::analysisRequest()
+{
+    if(method == METHOD_POST)
+    {
+        //get content
+        char header[MAX_BUFF];
+        sprintf(header, "HTTP/1.1 %d %s\r\n", 200, "OK");
+        if(headers.find("Connection") != headers.end() && headers["Connection"] == "keep-alive"){
+            keep_alive = true;
+            sprintf(header, "%sConnection: keep-alive\r\n", header);
+            sprintf(header, "%sKeep-alive: timeout=%d\r\n", header, EPOLL_WAIT_TIME);
+        }
+        cout << "content=" << content << endl;
+        //
+        char *send_content = "I have receiced this.";
+        sprintf(header, "%sContent-length: %zu\r\n", header, strlen(send_content));
+        sprintf(header, "%s\r\n", header);
+        size_t send_len = (size_t)rio_writen(fd, header, strlen(header));
+        if(send_len != strlen(header)){
+            perror("Send header failed");
+            return ANALYSIS_ERROR;
+        }
+        send_len = (size_t)rio_writen(fd, send_content, strlen(send_content));
+        if(send_len != strlen(send_content)){
+            perror("Send content failed");
+            return ANALYSIS_ERROR;
+        }
+        cout << "content size == " << content.size() << endl;
+        vector<char> data(content.begin(), content.end());
+        Mat test = imdecode(data, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
+        imwrite("receive.bmp", test);
+        return ANALYSIS_SUCCESS;
+    }
+    else if (method == METHOD_GET)
+    {
+        char header[MAX_BUFF];
+        sprintf(header, "HTTP/1.1 %d %s\r\n", 200, "OK");
+        if(headers.find("Connection") != headers.end() && headers["Connection"] == "keep-alive")
+        {
+            keep_alive = true;
+            sprintf(header, "%sConnection: keep-alive\r\n", header);
+            sprintf(header, "%sKeep-Alive: timeout=%d\r\n", header, EPOLL_WAIT_TIME);
+        }
+        int dot_pos = file_name.find('.');
+        const char *filetype;
+        if(dot_pos < 0){
+            filetype = MimeType::getMime("default").c_str();
+        }
+        else{
+            filetype = MimeType::getMime(file_name.substr(dot_pos)).c_str();
+        }
+        struct stat sbuf;
+        if(stat(file_name.c_str(), &sbuf) < 0){
+            handleError(fd, 404, "Not Found!");
+            return ANALYSIS_ERROR;
+        }
+        sprintf(header, "%sContent-type: %s\r\n", header, filetype);
+        //return size of file.
+        sprintf(header, "%sContent-length: %ld\r\n", header, sbuf.st_size);
+
+        sprintf(header, "%s\r\n", header);
+        size_t send_len = (size_t)rio_writen(fd, header, strlen(header));
+        if(send_len != strlen(header)){
+            perror("Send header failed");
+            return ANALYSIS_ERROR;
+        }
+        int src_fd = open(file_name.c_str(), O_RDONLY, 0);
+        char *src_addr = static_cast<char *>(mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, src_fd, 0));
+        close(src_fd);
+
+        //send file and check complete
+        send_len = rio_writen(fd, src_addr, sbuf.st_size);
+        if(send_len != sbuf.st_size){
+            perror("Send file failed");
+            return ANALYSIS_ERROR;
+        }
+        munmap(src_addr, sbuf.st_size);
+        return ANALYSIS_SUCCESS;
+    }
+    else 
+        return ANALYSIS_ERROR;
+}
+
+void Solver::handleError(int fd, int err_num, string short_msg)
+{
+    short_msg = " " + short_msg;
+    char send_buff[MAX_BUFF];
+    string body_buff, header_buff;
+    body_buff += "<html><title>Solver Error</title>";
+    body_buff += "<body bgcolor=\"ffffff\">";
+    body_buff += to_string(err_num) + short_msg;
+    body_buff += "<hr><em> Jackson's Web Server</em>\n</body></html>";
+
+    header_buff += "HTTP/1.1 " + to_string(err_num) + short_msg + "\r\n";
+    header_buff += "Content-type: text/html\r\n";
+    header_buff += "Connection: close\r\n";
+    header_buff += "Content-length: " + to_string(body_buff.size()) + "\r\n";
+    header_buff += "\r\n";
+    sprintf(send_buff, "%s", header_buff.c_str());
+    rio_writen(fd, send_buff, strlen(send_buff));
+    sprintf(send_buff, "%s", body_buff.c_str());
+    rio_writen(fd, send_buff, strlen(send_buff));
+}
