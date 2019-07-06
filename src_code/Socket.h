@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 #include "Util.h"
 
 class Socket
@@ -14,10 +15,11 @@ class Socket
 //需要事先实现 int port = atoi(argv[1]);
 public:
     Socket(int port, const char* ip);
+    Socket(int port);
     ~Socket();
     
     void bind_fd();
-    void listen_fd();
+    int listen_fd();
 
     int connect_fd();//客户端
     int accept_fd();

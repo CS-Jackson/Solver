@@ -10,4 +10,4 @@ http_conn.o: http_conn.cpp http_conn.h
 	g++ -g -c http_conn.cpp 
 
 clean:
-	rm *.o Solver
+	rm *.o 
