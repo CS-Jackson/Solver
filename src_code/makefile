@@ -1,13 +1,22 @@
-CC = g++
+SOURCE  := $(wildcard *.cpp)
+OBJS    := $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(SOURCE)))
 
-Solver: main.o http_conn.o 
-	g++ -o Solver *.o -lpthread
+TARGET  := SolverServer
+CC      := g++
+LIBS    := -lpthread -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs
+INCLUDE := -I/usr/local/include 
+LDFLAGS := -L/usr/local/lib
+CFLAGS  := -std=c++11 -g -Wall -O3 $(INCLUDE)
+CXXFLAGS:= $(CFLAGS)
 
-main.o: main.cpp
-	g++ -c main.cpp
+.PHONY : objs clean veryclean rebuild all
+all : $(TARGET)
+objs : $(OBJS)
+rebuild: veryclean all
+clean :
+	rm -fr *.o
+veryclean : clean
+	rm -rf $(TARGET)
 
-http_conn.o: http_conn.cpp http_conn.h
-	g++ -c http_conn.cpp 
-
-clean:
-	rm *.o
+$(TARGET) : $(OBJS)
+	$(CC) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LIBS)

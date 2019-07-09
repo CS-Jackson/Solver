@@ -1,10 +1,14 @@
 #pragma once
 #pragma once
+#include "timer.h"
+#include "locker.h"
 #include "http_conn.h"
 #include <vector>
 #include <unordered_map>
 #include <sys/epoll.h>
 #include <memory>
+
+class Solver;
 
 class Epoll
 {

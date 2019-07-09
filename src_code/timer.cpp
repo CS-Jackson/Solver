@@ -2,7 +2,7 @@
 
 mytimer::mytimer(shared_ptr<Solver> _request_data, int timeout): deleted(false), solver_data(_request_data)
 {
-    cout << "mytimer()" << endl;
+    // cout << "mytimer()" << endl;
     struct timeval now;
     gettimeofday(&now , NULL);
     //以毫秒计
@@ -11,7 +11,7 @@ mytimer::mytimer(shared_ptr<Solver> _request_data, int timeout): deleted(false),
 
 mytimer::~mytimer()
 {
-    cout << "~mytimer()" << endl;
+    // cout << "~mytimer()" << endl;
     if (solver_data)
     {
         Epoll::epoll_del(solver_data->getFd(), EPOLLIN | EPOLLET | EPOLLONESHOT);

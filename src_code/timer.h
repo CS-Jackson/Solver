@@ -5,6 +5,8 @@
 
 using namespace std;
 
+class Solver;
+
 struct mytimer
 {
     bool deleted;

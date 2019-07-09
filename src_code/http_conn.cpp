@@ -1,4 +1,8 @@
 #include "http_conn.h"
+#include "Util.h"
+#include "Epoll.h"
+#include "locker.h"
+#include "timer.h"
 
 #include <sys/epoll.h>
 #include <sys/time.h>
@@ -10,24 +14,22 @@
 #include <queue>
 #include <fcntl.h>
 
-#include "Util.h"
-#include "Epoll.h"
-#include "locker.h"
-#include "timer.h"
 
 #include <opencv/cv.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
+#include "opencv2/imgcodecs.hpp"
 using namespace cv;
 
 #include <iostream>
 using namespace std;
 
+// pthread_mutex_t MutexLockGuard::lock = PTHREAD_MUTEX_INITIALIZER; //In locker.cpp
 pthread_mutex_t MimeType::lock = PTHREAD_MUTEX_INITIALIZER;
 unordered_map<string, string> MimeType::mime;
 
-string MimeType::getMime(const string &suffix)
+std::string MimeType::getMime(const std::string &suffix)
 {
     if(mime.size() == 0)
     {
@@ -57,23 +59,22 @@ string MimeType::getMime(const string &suffix)
         return mime["default"];
 }
 
-priority_queue<shared_ptr<mytimer>, deque<shared_ptr<mytimer>>, timerCmp> myTimeQueue;
+priority_queue<shared_ptr<mytimer>, deque<shared_ptr<mytimer>>, timerCmp> myTimerQueue;
 
-Solver::Solver(): now_read_pos(0), state(), h_state(h_start), keep_alive(false), againTimes(0)
+Solver::Solver():  againTimes(0), now_read_pos(0), state(STATE_PARSE_URI), h_state(h_start), keep_alive(false)
 {
-    cout << "Solver()" << endl;
+    // cout << "Solver()" << endl;
 }
 
 Solver::Solver(int _epollfd, int _fd, std::string _path): 
-now_read_pos(0), state(), h_state(h_start), keep_alive(false), againTimes(0), 
-path(_path), fd(_fd), epollfd(_epollfd)
+againTimes(0), path(_path), fd(_fd), epollfd(_epollfd), now_read_pos(0), state(STATE_PARSE_URI), h_state(h_start), keep_alive(false)
 {
-    cout << "Solver()" << endl;
+    // cout << "Solver()" << endl;
 }
 
 Solver::~Solver()
 {
-    cout << "~Solver()" << endl;
+    // cout << "~Solver()" << endl;
     close(fd);
 }
 
@@ -144,12 +145,14 @@ void Solver::handleRequest()
                     isError = true;
                 }
                 else{
+                    cout << "Read again" << endl;
                     ++againTimes;
                 }
             }
             else if ( errno != 0){
                 isError = true;
             }
+            isError = true;
             break;
         }
         string now_read(buff, buff + read_num);
@@ -173,7 +176,7 @@ void Solver::handleRequest()
             if ( flag == PARSE_HEADER_AGAIN){
                 break;
             }
-            else if (flag == PARSE_HEADER_ERROR){
+            else if ((flag == PARSE_HEADER_ERROR) && (errno != EAGAIN)){
                 perror("3");
                 isError = true;
                 break;
@@ -238,17 +241,18 @@ void Solver::handleRequest()
             return;
         }
     }
-    //加入定时器，在添加EPOLLIN事件前加入；
+    //加入定时器，在添加EPOLLIN事件前加入（？）；
+    // cout << "shared_from_this().use_count() before: " << shared_from_this().use_count() << endl;
     shared_ptr<mytimer> mtimer(new mytimer(shared_from_this(), EPOLL_WAIT_TIME));
     this->addTimer(mtimer);
     {
         MutexLockGuard lock;        //RAII锁
-        myTimeQueue.push(mtimer);
+        myTimerQueue.push(mtimer);
     }
 
     __uint32_t _epoll_event = EPOLLIN | EPOLLET | EPOLLONESHOT;
     int ret = Epoll::epoll_mod(fd, shared_from_this(), _epoll_event);
-    cout << "shared_from_this().use_count() == " << shared_from_this().use_count() << endl;
+    // cout << "shared_from_this().use_count() after: " << shared_from_this().use_count() << endl;
     if (ret < 0)
     {
         //错误
@@ -314,7 +318,7 @@ int Solver::parse_URI()
         }
         pos = _pos;
     }
-    cout << "file_name: " << file_name << endl;
+    // scout << "file_name: " << file_name << endl;
     //HTTP version
     pos = request_line.find("/", pos);
     if (pos < 0)
@@ -361,11 +365,11 @@ int Solver::parse_Headers()
             {
                 if(str[i] == ':')
                 {
-                key_end = i;
-                if (key_end - key_start <= 0){
-                    return PARSE_HEADER_ERROR;
-                }
-                h_state = h_colon;
+                    key_end = i;
+                    if (key_end - key_start <= 0){
+                        return PARSE_HEADER_ERROR;
+                    }
+                    h_state = h_colon;
                 }
                 else if (str[i] == '\n' || str[i] == '\r'){
                     return PARSE_HEADER_ERROR;
@@ -468,7 +472,7 @@ int Solver::analysisRequest()
         }
         cout << "content=" << content << endl;
         //
-        char *send_content = "I have receiced this.";
+        char send_content[] = "I have receiced this.";
         sprintf(header, "%sContent-length: %zu\r\n", header, strlen(send_content));
         sprintf(header, "%s\r\n", header);
         size_t send_len = (size_t)rio_writen(fd, header, strlen(header));
@@ -525,8 +529,8 @@ int Solver::analysisRequest()
         close(src_fd);
 
         //send file and check complete
-        send_len = rio_writen(fd, src_addr, sbuf.st_size);
-        if(send_len != sbuf.st_size){
+        send_len = rio_writen(fd, src_addr, sbuf.st_size);//return a size_t var.
+        if(send_len != sbuf.st_size){//the signed int to size_t maybe wrong?
             perror("Send file failed");
             return ANALYSIS_ERROR;
         }

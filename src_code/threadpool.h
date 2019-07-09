@@ -43,7 +43,7 @@ struct ThreadPoolTask
  *  @var shutdown     Flag indicating if the pool is shutting down
  *  @var started      Number of started threads
  */
-void myHandler(std::shared_ptr<void> req);
+void myHandler(std::shared_ptr<void> solver);
 class ThreadPool
 {
 private:
@@ -62,7 +62,7 @@ private:
 public:
     static int threadpool_create(int _thread_count, int _queue_size);
     static int threadpool_add(std::shared_ptr<void> args, std::function<void(std::shared_ptr<void>)> fun = myHandler);
-    static int threadpool_destroy();
+    static int threadpool_destroy(threadpool_shutdown_t shutdown_option = graceful_shutdown);
     static int threadpool_free();
     static void *threadpool_thread(void *args);
 };

@@ -1,5 +1,6 @@
 #include "Socket.h"
-
+#include <iostream>
+using namespace std;
 // struct linger tmp = { 1, 0 };
 // setsockopt( listenfd, SOL_SOCKET, SO_LINGER, &tmp, sizeof( tmp ) );
 
@@ -15,8 +16,8 @@ int Createlistenfd()
     return listenfd;
 }
 
-Socket::Socket(int port, const char* ip): listenfd(Createlistenfd()), SERVER_IP(ip), SERVER_PORT(port) { }
-Socket::Socket(int port): listenfd(Createlistenfd()), SERVER_IP(nullptr), SERVER_PORT(port) { } 
+Socket::Socket(int port, const char* ip): listenfd(Createlistenfd()), SERVER_PORT(port), SERVER_IP(ip) { }
+Socket::Socket(int port): listenfd(Createlistenfd()), SERVER_PORT(port), SERVER_IP(nullptr) { } 
 
 Socket::~Socket()
 {
@@ -32,6 +33,7 @@ void Socket::bind_fd()
     address.sin_family = AF_INET;
 
     if(SERVER_IP){
+        cout << "Setting IP" << endl;
         inet_pton( AF_INET, SERVER_IP, &address.sin_addr );
         address.sin_port = htons( SERVER_PORT );
     }

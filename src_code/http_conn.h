@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <memory>
 #include "Epoll.h"
-//#include "timer.h"
+// #include "timer.h"
 #include "Socket.h"
 #include "rio.h"
 
@@ -66,7 +66,9 @@ enum HeadersState
 };
 
 struct mytimer;
-
+class Solver;
+//使用unordered_map保存头部字段的key-value。
+//用weaker_ptr来实现计时器和Solver的互指。以及将自身类反馈给EPOLL。
 class Solver : public std::enable_shared_from_this<Solver>
 {
 private:
@@ -74,7 +76,7 @@ private:
     std::string path;
     int fd;
     int epollfd;
-    //
+    //handle the buff
     std::string content;
     int method;
     int HTTPversion;

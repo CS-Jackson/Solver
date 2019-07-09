@@ -24,6 +24,7 @@ public:
     int connect_fd();//客户端
     int accept_fd();
 
+    //以下还没写。
     void shutdownWrite();
 
     void setReuseAddr();
