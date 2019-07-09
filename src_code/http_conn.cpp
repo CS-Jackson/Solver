@@ -139,19 +139,19 @@ void Solver::handleRequest()
         {
             //读不到数据，Request Aborted。
             perror("read_num == 0");
-            if(errno == EAGAIN)
-            {
-                if(againTimes > AGAIN_MAX_TIMES){
-                    isError = true;
-                }
-                else{
-                    cout << "Read again" << endl;
-                    ++againTimes;
-                }
-            }
-            else if ( errno != 0){
-                isError = true;
-            }
+            // if(errno == EAGAIN)
+            // {
+            //     if(againTimes > AGAIN_MAX_TIMES){
+            //         isError = true;
+            //     }
+            //     else{
+            //         cout << "Read again" << endl;
+            //         ++againTimes;
+            //     }
+            // }
+            // else if ( errno != 0){
+            //     isError = true;
+            // }
             isError = true;
             break;
         }
@@ -521,6 +521,12 @@ int Solver::analysisRequest()
         sprintf(header, "%s\r\n", header);
         size_t send_len = (size_t)rio_writen(fd, header, strlen(header));
         if(send_len != strlen(header)){
+            if (send_len == -1)
+            {
+                cout << "Send file failed because client closed" << endl;
+                state = STATE_CLOSE;
+                return ANALYSIS_ERROR;
+            }
             perror("Send header failed");
             return ANALYSIS_ERROR;
         }
@@ -531,6 +537,12 @@ int Solver::analysisRequest()
         //send file and check complete
         send_len = rio_writen(fd, src_addr, sbuf.st_size);//return a size_t var.
         if(send_len != sbuf.st_size){//the signed int to size_t maybe wrong?
+            if (send_len == -1)
+            {
+                cout << "Send file failed because client closed" << endl;
+                state = STATE_CLOSE;
+                return ANALYSIS_ERROR;
+            }
             perror("Send file failed");
             return ANALYSIS_ERROR;
         }

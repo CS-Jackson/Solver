@@ -14,6 +14,7 @@ const int STATE_PARSE_HEADERS = 2;
 const int STATE_RECV_BODY = 3;
 const int STATE_ANALYSIS = 4;
 const int STATE_FINISH = 5;
+const int STATE_CLOSE = 6;
 
 const int MAX_BUFF = 4096;
 
