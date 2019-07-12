@@ -191,10 +191,10 @@ std::vector<std::shared_ptr<Solver>> Epoll::getEventsRequest(int listen_fd, int 
                 else{
                     cur_req->enableWrite();
                 }
-                printf("cur_rea.use_count before sep: %ld\n", cur_req.use_count());
+                // printf("cur_rea.use_count before sep: %ld\n", cur_req.use_count());
                 cur_req->seperateTimer();
-                solver_data.push_back(cur_req);
-                printf("cur_rea.use_count after sep: %ld\n", cur_req.use_count());
+                // printf("cur_rea.use_count after sep: %ld\n", cur_req.use_count());
+                solver_data.push_back(cur_req); //加入到vector中会使得引用计数+1；
                 fd2req[fd].reset();
             }
             else{
