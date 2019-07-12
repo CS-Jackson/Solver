@@ -1,6 +1,4 @@
 #include "threadpool.h"
-// #include <iostream>
-// using namespace std;
 
 pthread_mutex_t ThreadPool::lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t ThreadPool::notify = PTHREAD_COND_INITIALIZER;
@@ -43,7 +41,6 @@ int ThreadPool::threadpool_create(int _thread_count, int _queue_size)
             ++started;
         }
     } while (false);
-
     if(err){
         return -1;
     }
@@ -53,19 +50,7 @@ int ThreadPool::threadpool_create(int _thread_count, int _queue_size)
 void myHandler(std::shared_ptr<void> solv)
 {
     std::shared_ptr<Solver> solver = std::static_pointer_cast<Solver>(solv);
-
-    //solver->handleRequest();
-    if(solver->canWrite()){
-        // cout << "Handle Write" << endl;
-        solver->handleWrite();
-        // cout << "Finish handle Write" << endl;
-    }
-    else if (solver->canRead()){
-        // cout << "Handle Read" << endl;
-        solver->handleRead();
-        // cout << "Finish handle Read" << endl;
-    }
-    solver->handleConn();
+    solver->handleRequest();
 }
 
 int ThreadPool::threadpool_add(std::shared_ptr<void> args, std::function<void(std::shared_ptr<void>)> fun)
@@ -101,7 +86,6 @@ int ThreadPool::threadpool_add(std::shared_ptr<void> args, std::function<void(st
             break;
         }
     } while (false);
-    
     if(pthread_mutex_unlock(&lock) != 0)
     {
         err = THREADPOOL_LOCK_FAILURE;
@@ -178,7 +162,7 @@ void *ThreadPool::threadpool_thread(void *args)
         Task.fun = queue[head].fun;
         Task.args = queue[head].args;
         queue[head].fun = NULL;
-        queue[head].args.reset();
+        queue[head].args = NULL;
         head = (head + 1) % queue_size;
         --count;
         pthread_mutex_unlock(&lock);

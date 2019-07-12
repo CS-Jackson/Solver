@@ -1,6 +1,12 @@
 #include "timer.h"
+#include "Epoll.h"
+#include <unordered_map>
+#include <string>
+#include <sys/time.h>
+#include <deque>
+#include <queue>
 
-mytimer::mytimer(shared_ptr<Solver> _request_data, int timeout): deleted(false), solver_data(_request_data)
+mytimer::mytimer(SP_Solver _solver_data, int timeout): deleted(false), solver_data(_solver_data)
 {
     // cout << "mytimer()" << endl;
     struct timeval now;
@@ -14,7 +20,7 @@ mytimer::~mytimer()
     // cout << "~mytimer()" << endl;
     if (solver_data)
     {
-        Epoll::epoll_del(solver_data->getFd(), EPOLLIN | EPOLLET | EPOLLONESHOT);
+        Epoll::epoll_del(solver_data->getFd());
     }
 }
 
@@ -61,7 +67,47 @@ size_t mytimer::getExpTime() const
     return expired_time;
 }
 
-bool timerCmp::operator()(shared_ptr<mytimer> &a, shared_ptr<mytimer> &b) const
+HeapTimer::HeapTimer()
 {
-    return a->getExpTime() > b->getExpTime();
+
+}
+HeapTimer::~HeapTimer()
+{
+
+}
+
+void HeapTimer::addTimer(SP_Solver solver_data, int timeout)
+{
+    SP_Timer new_node(new mytimer(solver_data, timeout));
+    {
+        MutexLockGuard locker(lock);
+        TimerQueue.push(new_node);  
+    }
+    solver_data->linkTimer(new_node);
+}
+
+void HeapTimer::addTimer(SP_Timer timer_nodes)
+{
+
+}
+
+//将定时器的处理整合到一个类中，再把这个
+void HeapTimer::handle_expired_event()
+{
+    MutexLockGuard locker(lock);
+    while(!TimerQueue.empty())
+    {
+        SP_Timer ptimer_now = TimerQueue.top();
+        if(ptimer_now->isDeleted())
+        {
+            TimerQueue.pop();
+        }
+        else if(ptimer_now->isvalid() == false)
+        {
+            TimerQueue.pop();
+        }
+        else{
+            break;
+        }
+    }
 }

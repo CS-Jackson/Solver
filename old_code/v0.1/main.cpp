@@ -70,7 +70,7 @@ int main( int argc, char* argv[] )
     int listenfd = socket( PF_INET, SOCK_STREAM, 0 );
     assert( listenfd >= 0 );
 
-    // struct linger tmp = { 1, 0 };
+    // struct linger tmp = { 1, 10 };
     // setsockopt( listenfd, SOL_SOCKET, SO_LINGER, &tmp, sizeof( tmp ) );
     
     // 消除bind时"Address already in use"错误

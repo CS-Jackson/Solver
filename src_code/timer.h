@@ -1,18 +1,26 @@
 #pragma once
-#include <iostream>
-#include <sys/time.h>
 #include "http_conn.h"
+#include "./base/nocopyable.hpp"
+#include "./base/locker.hpp"
+#include <unistd.h>
+#include <memory>
+#include <queue>
+#include <deque>
 
-using namespace std;
+// #include <iostream>
+// using namespace std;
 
 class Solver;
 
-struct mytimer
+class mytimer
 {
+    typedef std::shared_ptr<Solver> SP_Solver;
+private:
     bool deleted;
     size_t expired_time;
-    shared_ptr<Solver> solver_data;
-    mytimer( shared_ptr<Solver> _solver_data, int timeout);
+    SP_Solver solver_data;
+public:
+    mytimer(SP_Solver _solver_data, int timeout);
     ~mytimer();
     void update(int timeout);
     bool isvalid();
@@ -24,8 +32,24 @@ struct mytimer
 
 struct timerCmp
 {
-    bool operator()(std::shared_ptr<mytimer> &a, std::shared_ptr<mytimer> &b) const;
+    bool operator()(std::shared_ptr<mytimer> &a, std::shared_ptr<mytimer> &b) const
+    {
+        return a->getExpTime() > b->getExpTime();
+    }
 };
 
-
+class HeapTimer
+{
+    typedef std::shared_ptr<Solver> SP_Solver;
+    typedef std::shared_ptr<mytimer> SP_Timer;
+private:
+    std::priority_queue<SP_Timer, std::deque<SP_Timer>, timerCmp> TimerQueue;
+    MutexLock lock;
+public:
+    HeapTimer();
+    ~HeapTimer();
+    void addTimer(SP_Solver Solver, int timeout);
+    void addTimer(SP_Timer timer_node);
+    void handle_expired_event();
+};
 
