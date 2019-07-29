@@ -16,6 +16,7 @@
 #include "Util.h"
 #include "http_conn.h"
 #include "Socket.h"
+// #include "Mysql.h"
 
 static const int MAX_EVENT_NUMBER = 5000;
 static const int LISTENQ = 1024;
@@ -100,6 +101,10 @@ int main( int argc, char* argv[] )
     #ifndef _PTHREADS
         printf("_Pthreads is not defined!\n");
     #endif
+
+    // MyDB db;
+    // db.initDB("localhost", "root", "csj08220618", "test");
+    // db.exeSQL("select * from userinfo");
 
     handle_for_sigpipe();
 

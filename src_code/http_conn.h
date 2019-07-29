@@ -4,7 +4,7 @@
 #include <memory>
 #include <sys/epoll.h>
 #include "timer.h"
-
+#include "Mysql.h"
 
 #include <opencv/cv.h>
 #include <opencv2/core/core.hpp>
@@ -117,6 +117,7 @@ private:
     {
         return src;
     }
+    MyDB DB;
 
 public:
     Solver();

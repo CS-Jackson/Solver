@@ -69,6 +69,7 @@ Solver::Solver(int _epollfd, int _fd, std::string _path):
 path(_path), fd(_fd), epollfd(_epollfd), now_read_pos(0), state(STATE_PARSE_URI), h_state(h_start), keep_alive(false),
 isAbleRead(true), isAbleWrite(false), events(0), error(false)
 {
+    DB.initDB("localhost", "root", "csj08220618", "test");
     // againTimes(0),
     // cout << "Solver()" << endl;
 }
@@ -134,6 +135,7 @@ void Solver::handleRead()
     {
         int read_num = rio_readn(fd, inBuffer);
         //printf()
+        cout << inBuffer << endl;
         if(read_num < 0){
             perror("1");
             error = true;
@@ -189,12 +191,12 @@ void Solver::handleRead()
         if (state == STATE_RECV_BODY)
         {
             int content_length = -1;
-            if(headers.find("Content-length") != headers.end()){
-                content_length = stoi(headers["Content-length"]);
+            if(headers.find("Content-Length") != headers.end()){
+                content_length = stoi(headers["Content-Length"]);
             }
             else{
                 error = true;
-                handleError(fd, 400, "Bad Request because of lack of argument (Content-length)");
+                handleError(fd, 400, "Bad Request because of lack of argument (Content-Length)");
                 break;
             }
             if(inBuffer.size() < content_length){
@@ -512,12 +514,37 @@ int Solver::analysisRequest()
             // sprintf(header, "%sKeep-alive: timeout=%d\r\n", header, EPOLL_WAIT_TIME);
             header += string("Connection: keep-alive\r\n") + "Keep-Alive: timeout=" + to_string(5 * 60 * 1000) + "\r\n";
         }
+        int dot_pos = file_name.find('.');
+        string filetype;
+        if(dot_pos < 0){
+            filetype = MimeType::getMime("default");//.c_str();
+        }
+        else{
+            filetype = MimeType::getMime(file_name.substr(dot_pos));//.c_str();
+        }
+        struct stat sbuf;
+
+        if(stat(file_name.c_str(), &sbuf) < 0){
+            header.clear();
+            handleError(fd, 404, "Not Found!");
+            return ANALYSIS_ERROR;
+        }
+        header += "Content-type: " + filetype + "\r\n";
+        header += "Content-Length: " + to_string(sbuf.st_size) + "\r\n";
+        header += "\r\n";   //头部结尾
+        outBuffer += header;
+        int src_fd = open(file_name.c_str(), O_RDONLY, 0);
+        char *src_addr = static_cast<char *>(mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, src_fd, 0));
+        close(src_fd);
+        printf(src_addr);
+        outBuffer += src_addr;
+        munmap(src_addr, sbuf.st_size);
         // cout << "content=" << content << endl;
         //
         // char send_content[] = "I have receiced this.";
-        // sprintf(header, "%sContent-length: %zu\r\n", header, strlen(send_content));
+        // sprintf(header, "%sContent-Length: %zu\r\n", header, strlen(send_content));
         // sprintf(header, "%s\r\n", header);
-        int length = stoi(headers["Content-length"]);
+        int length = stoi(headers["Content-Length"]);
         // size_t send_len = (size_t)rio_writen(fd, header, strlen(header));
         // if(send_len != strlen(header)){
         //     perror("Send header failed");
@@ -530,14 +557,40 @@ int Solver::analysisRequest()
         // }
         // cout << "content size == " << content.size() << endl;
         // vector<char> data(content.begin(), content.end());
-        vector<char> data(inBuffer.begin(), inBuffer.begin() + length);
-        Mat src = imdecode(data, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
-        imwrite("receive.bmp", src);
-        Mat res = stitch(src);
-        vector<uchar> data_encode;
-        imencode(".png", res, data_encode);
-        header += string("Content-length: ") + to_string(data_encode.size()) + "\r\n\r\n";
-        outBuffer += header + string(data_encode.begin(), data_encode.end());
+        // vector<char> data(inBuffer.begin(), inBuffer.begin() + length);
+        // Mat src = imdecode(data, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
+        // imwrite("receive.bmp", src);
+        // Mat res = stitch(src);
+        // vector<uchar> data_encode;
+        // imencode(".png", res, data_encode);
+        // header += string("Content-Length: ") + to_string(data_encode.size()) + "\r\n\r\n";
+        // outBuffer += header + string(data_encode.begin(), data_encode.end());
+        string POST_BODY(inBuffer.begin(), inBuffer.begin()+length);
+        cout << "POST_BODY: " << POST_BODY << endl;
+        string::iterator POSTbegin = POST_BODY.begin(), key = POST_BODY.begin(), value = POST_BODY.begin();
+        unordered_map<string, string> RECV_BODY;
+        for(string::iterator iter1 = POST_BODY.begin(); iter1 != POST_BODY.end(); iter1++)
+        {
+            if(*iter1 == '=') {
+                key = iter1;
+            }
+            if(*iter1 == '&') {
+                string key_s(POSTbegin, key);
+                string value_s(key + 1, iter1);
+                RECV_BODY[key_s] = value_s;
+                POSTbegin = iter1 + 1;
+            }
+            if(iter1 + 1 == POST_BODY.end()) {
+                string key_s(POSTbegin, key);
+                string value_s(key + 1, iter1 + 1);
+                RECV_BODY[key_s] = value_s;
+                POSTbegin = iter1 + 1;
+            }
+        }
+        for(unordered_map<string, string>::iterator ss = RECV_BODY.begin(); ss != RECV_BODY.end(); ss++)
+        {
+            cout << "first: " << (*ss).first << " " << "second: " << (*ss).second << endl;
+        }
         inBuffer = inBuffer.substr(length);
         return ANALYSIS_SUCCESS;
     }
@@ -571,11 +624,11 @@ int Solver::analysisRequest()
         }
         // sprintf(header, "%sContent-type: %s\r\n", header, filetype);
         // //return size of file.
-        // sprintf(header, "%sContent-length: %ld\r\n", header, sbuf.st_size);
+        // sprintf(header, "%sContent-Length: %ld\r\n", header, sbuf.st_size);
 
         // sprintf(header, "%s\r\n", header);
         header += "Content-type: " + filetype + "\r\n";
-        header += "Content-length: " + to_string(sbuf.st_size) + "\r\n";
+        header += "Content-Length: " + to_string(sbuf.st_size) + "\r\n";
         header += "\r\n";   //头部结尾
         outBuffer += header;
         // size_t send_len = (size_t)rio_writen(fd, header, strlen(header));
@@ -626,7 +679,7 @@ void Solver::handleError(int fd, int err_num, string short_msg)
     header_buff += "HTTP/1.1 " + to_string(err_num) + short_msg + "\r\n";
     header_buff += "Content-type: text/html\r\n";
     header_buff += "Connection: close\r\n";
-    header_buff += "Content-length: " + to_string(body_buff.size()) + "\r\n";
+    header_buff += "Content-Length: " + to_string(body_buff.size()) + "\r\n";
     header_buff += "\r\n";
     sprintf(send_buff, "%s", header_buff.c_str());
     rio_writen(fd, send_buff, strlen(send_buff));

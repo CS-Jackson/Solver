@@ -523,7 +523,7 @@ int Solver::analysisRequest()
         if(send_len != strlen(header)){
             if (send_len == -1)
             {
-                cout << "Send file failed because client closed" << endl;
+                cout << "Send header failed because client closed" << endl;
                 state = STATE_CLOSE;
                 return ANALYSIS_ERROR;
             }
