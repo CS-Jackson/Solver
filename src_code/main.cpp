@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <netinet/in.h>
-
+#include <iostream>
 #include "threadpool.h"
 #include "Epoll.h"
 #include "Util.h"
@@ -143,7 +143,7 @@ int main( int argc, char* argv[] )
         perror("epoll add error.");
         return 1;
     }
-
+    std::cout << "Begin loop" << std::endl;
     while( 1 )
     {
         Epoll::my_epoll_wait(listenfd, MAX_EVENT_NUMBER, -1);

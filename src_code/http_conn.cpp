@@ -69,7 +69,7 @@ Solver::Solver(int _epollfd, int _fd, std::string _path):
 path(_path), fd(_fd), epollfd(_epollfd), now_read_pos(0), state(STATE_PARSE_URI), h_state(h_start), keep_alive(false),
 isAbleRead(true), isAbleWrite(false), events(0), error(false)
 {
-    DB.initDB("localhost", "root", "csj08220618", "test");
+    // DB.initDB("localhost", "root", "csj84377532", "test");
     // againTimes(0),
     // cout << "Solver()" << endl;
 }
@@ -134,8 +134,8 @@ void Solver::handleRead()
     do
     {
         int read_num = rio_readn(fd, inBuffer);
-        //printf()
-        cout << inBuffer << endl;
+        // printf()
+        // cout << inBuffer << endl;
         if(read_num < 0){
             perror("1");
             error = true;
@@ -302,7 +302,7 @@ void Solver::handleConn()
 int Solver::parse_URI()
 {
     string &str = inBuffer;
-    //
+    cout << inBuffer << endl;
     int pos = str.find('\r', now_read_pos);
     if (pos < 0){
         return PARSE_URI_AGAIN;
@@ -352,7 +352,7 @@ int Solver::parse_URI()
             else
             {
                 //默认选项
-                file_name = "index.html";
+                file_name = "Webpage/index.html";
             }
         }
         pos = _pos;
@@ -536,7 +536,9 @@ int Solver::analysisRequest()
         int src_fd = open(file_name.c_str(), O_RDONLY, 0);
         char *src_addr = static_cast<char *>(mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, src_fd, 0));
         close(src_fd);
-        printf(src_addr);
+
+        // printf(src_addr);
+        
         outBuffer += src_addr;
         munmap(src_addr, sbuf.st_size);
         // cout << "content=" << content << endl;
@@ -591,6 +593,7 @@ int Solver::analysisRequest()
         {
             cout << "first: " << (*ss).first << " " << "second: " << (*ss).second << endl;
         }
+        cout << "\r\n" << endl;
         inBuffer = inBuffer.substr(length);
         return ANALYSIS_SUCCESS;
     }
@@ -610,6 +613,13 @@ int Solver::analysisRequest()
         int dot_pos = file_name.find('.');
         //const char *filetype;
         string filetype;
+        if(file_name.substr(dot_pos) == ".cgi") {
+            cout << "Exec the cig file" << endl;
+            dup2(fd, 1);
+            // close(fd);
+            execlp(file_name.c_str(), NULL);
+            return ANALYSIS_SUCCESS;
+        }
         if(dot_pos < 0){
             filetype = MimeType::getMime("default");//.c_str();
         }
@@ -659,6 +669,8 @@ int Solver::analysisRequest()
         //     perror("Send file failed");
         //     return ANALYSIS_ERROR;
         // }
+        cout << outBuffer << endl;
+
         munmap(src_addr, sbuf.st_size);
         return ANALYSIS_SUCCESS;
     }
