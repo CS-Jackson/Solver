@@ -613,13 +613,13 @@ int Solver::analysisRequest()
         int dot_pos = file_name.find('.');
         //const char *filetype;
         string filetype;
-        if(file_name.substr(dot_pos) == ".cgi") {
-            cout << "Exec the cig file" << endl;
-            dup2(fd, 1);
-            // close(fd);
-            execlp(file_name.c_str(), NULL);
-            return ANALYSIS_SUCCESS;
-        }
+        // if(file_name.substr(dot_pos) == ".cgi") {
+        //     cout << "Exec the cig file" << endl;
+        //     dup2(fd, 1);
+        //     // close(fd);
+        //     execlp(file_name.c_str(), NULL);
+        //     return ANALYSIS_SUCCESS;
+        // }
         if(dot_pos < 0){
             filetype = MimeType::getMime("default");//.c_str();
         }
