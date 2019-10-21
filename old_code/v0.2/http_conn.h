@@ -79,6 +79,7 @@ private:
     int epollfd;
     //handle the buff
     std::string content;
+    std::string recbody;
     int method;
     int HTTPversion;
     std::string file_name;

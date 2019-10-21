@@ -40,7 +40,7 @@ void cgi_conn::process()
             }
             m_buf[idx-1] = '\0';
             char *file_name = m_buf;
-            printf("file_name: %s", file_name);
+            printf("file_name: %s\n", file_name);
             if( access(file_name, F_OK) == -1) {
                 removefd(m_epollfd, m_sockfd);
                 break;

@@ -121,7 +121,7 @@ void Solver::seperateTimer()
         timer.reset();
     }
 }
-
+//http://192.168.229.135:12345/
 void Solver::handleRequest()
 {
     char buff[MAX_BUFF];
@@ -157,6 +157,7 @@ void Solver::handleRequest()
         }
         string now_read(buff, buff + read_num);
         content += now_read;
+        //std::cout << content ;//<< std::endl;
 
         if (state == STATE_PARSE_URI)
         {
@@ -172,31 +173,47 @@ void Solver::handleRequest()
         }
         if (state == STATE_PARSE_HEADERS)
         {
+            cout << "Begin parsing headers..." << endl;
+            // cout << "Count content during parsing headers: " << endl;
+            // cout << content << endl << endl;
             int flag = this->parse_Headers();
             if ( flag == PARSE_HEADER_AGAIN){
+                cout << "Maybe something wrong" << endl;
                 break;
             }
             else if ((flag == PARSE_HEADER_ERROR) && (errno != EAGAIN)){
+                //cout << content << endl;
                 perror("3");
                 isError = true;
                 break;
             }
             if(method == METHOD_POST)
             {
+                cout << "headers' size in POST method: " << headers.size() << endl;
                 state = STATE_RECV_BODY;
             }
             else {
+                cout << "headers' size in GET method: " << headers.size() << endl;
                 state = STATE_ANALYSIS;
             }
         }
         if (state == STATE_RECV_BODY)
         {
+            cout << "Begin parsing body..." << endl;
+            // cout << "POST data: " << endl;
+            // cout << content << endl << endl;
             int content_length = -1;
-            if ( headers.find("Content-length") != headers.end())
+            if ( headers.find("Content-Length") != headers.end())
             {
-                content_length = stoi(headers["Content-length"]);
+                content_length = stoi(headers["Content-Length"]);//Content-Length
+                cout << "Content-Length: " << content_length << endl;
             }
             else{
+                for(auto iter = headers.begin(); iter != headers.end(); ++iter) {
+                    //cout << (*iter).first << " : " << (*iter).second << endl;
+                }
+                cout << "headers' number: " << headers.size() << endl;
+                cout << "Can't find Content-Length head" << endl;
                 isError = true;
                 break;
             }
@@ -204,9 +221,11 @@ void Solver::handleRequest()
             if (content.size() < content_length)
                 continue;
             state = STATE_ANALYSIS;
+            
         }
         if (state == STATE_ANALYSIS)
         {
+            cout << "Begin Analysising..." << endl;
             int flag = this->analysisRequest();
             if (flag < 0){
                 isError = true;
@@ -263,13 +282,14 @@ void Solver::handleRequest()
 int Solver::parse_URI()
 {
     string &str = content;
-    //
-    int pos = str.find('\r', now_read_pos);
+    cout << "Full content: " << endl;
+    cout << content << endl;
+    int pos = str.find('\n', now_read_pos);
     if (pos < 0){
         return PARSE_URI_AGAIN;
     }
     //去掉请求行，省空间。
-    string request_line = str.substr(0, pos);
+    string request_line = str.substr(0, pos+1);
     if(str.size() > pos + 1){
         str = str.substr(pos + 1);
     }
@@ -318,7 +338,7 @@ int Solver::parse_URI()
         }
         pos = _pos;
     }
-    // scout << "file_name: " << file_name << endl;
+    //cout << "file_name: " << file_name << endl;
     //HTTP version
     pos = request_line.find("/", pos);
     if (pos < 0)
@@ -354,8 +374,12 @@ int Solver::parse_Headers()
         {
             case h_start:
             {
+                //cout << "h_start" << endl;
                 if (str[i] == '\n' || str[i] == '\r')
+                {
+                    if(i == 0) cout << "h_start is CR or LF" << endl;
                     break;
+                }
                 h_state = h_key;
                 key_start = i;
                 now_read_line_begin = i;
@@ -363,6 +387,7 @@ int Solver::parse_Headers()
             }
             case h_key:
             {
+                //cout << "h_key" << endl;
                 if(str[i] == ':')
                 {
                     key_end = i;
@@ -378,6 +403,7 @@ int Solver::parse_Headers()
             }
             case h_colon:
             {
+                //cout << "h_colon" << endl;
                 if(str[i] == ' '){
                     h_state = h_spaces_after_colon;
                 }
@@ -388,12 +414,14 @@ int Solver::parse_Headers()
             }
             case h_spaces_after_colon:
             {
+                //cout << "h_after_colon" << endl;
                 h_state = h_value;
                 value_start = i;
                 break;
             }
             case h_value:
             {
+                //cout << "h_value" << endl;
                 if(str[i] == '\r'){
                     h_state = h_CR;
                     value_end = i;
@@ -404,13 +432,16 @@ int Solver::parse_Headers()
                 else if (i - value_start > 255){//?
                     return PARSE_HEADER_ERROR;
                 }
+                break;
             }
             case h_CR:
             {
+                //cout << "h_CR" << endl;
                 if(str[i] == '\n'){
                     h_state = h_LF;
                     string key(str.begin() + key_start, str.begin() + key_end);
                     string value(str.begin() + value_start, str.begin() + value_end);
+                    //cout << key << " : " << value << endl;
                     headers[key] = value;
                     now_read_line_begin = i;
                 }
@@ -421,6 +452,7 @@ int Solver::parse_Headers()
             }
             case h_LF:
             {
+                //cout << "h_LF" << endl;
                 if (str[i] == '\r')
                 {
                     h_state = h_end_CR;
@@ -433,6 +465,7 @@ int Solver::parse_Headers()
             }
             case h_end_CR:
             {
+                //cout << "h_end_CR" << endl;
                 if(str[i] == '\n'){
                     h_state = h_end_LF;
                 }
@@ -443,6 +476,7 @@ int Solver::parse_Headers()
             }
             case h_end_LF:
             {
+                //cout << "Finish parsing headers" << endl;
                 notFinish = false;
                 key_start = i;
                 now_read_line_begin = i;
@@ -451,17 +485,22 @@ int Solver::parse_Headers()
         }
     }
     if(h_state == h_end_LF){
+        h_state = h_start;
+        //cout << "Success, now_read_line_begin: " << now_read_line_begin << endl;
         str = str.substr(now_read_line_begin);
         return PARSE_HEADER_SUCCESS;
     }
+    cout << "Again, now_read_line_begin: " << now_read_line_begin << endl;
     str = str.substr(now_read_line_begin);
     return PARSE_HEADER_AGAIN;
 }
 
 int Solver::analysisRequest()
 {
+    string webfile = "./webpage/";
     if(method == METHOD_POST)
     {
+        //cout << content << endl;
         //get content
         char header[MAX_BUFF];
         sprintf(header, "HTTP/1.1 %d %s\r\n", 200, "OK");
@@ -470,29 +509,64 @@ int Solver::analysisRequest()
             sprintf(header, "%sConnection: keep-alive\r\n", header);
             sprintf(header, "%sKeep-alive: timeout=%d\r\n", header, EPOLL_WAIT_TIME);
         }
-        cout << "content=" << content << endl;
-        //
-        char send_content[] = "I have receiced this.";
-        sprintf(header, "%sContent-length: %zu\r\n", header, strlen(send_content));
+
+        file_name = webfile + file_name;
+        cout << file_name << endl;
+        int dot_pos = file_name.find('.');
+        const char *filetype;
+        if(dot_pos < 0){
+            filetype = MimeType::getMime("default").c_str();
+        }
+        else{
+            filetype = MimeType::getMime(file_name.substr(dot_pos)).c_str();
+        }
+        struct stat sbuf;
+        if(stat(file_name.c_str(), &sbuf) < 0){
+            handleError(fd, 404, "Not Found!");
+            return ANALYSIS_ERROR;
+        }
+        sprintf(header, "%sContent-type: %s\r\n", header, filetype);
+        sprintf(header, "%sContent-length: %zu\r\n", header, sbuf.st_size);
         sprintf(header, "%s\r\n", header);
         size_t send_len = (size_t)rio_writen(fd, header, strlen(header));
         if(send_len != strlen(header)){
             perror("Send header failed");
             return ANALYSIS_ERROR;
         }
-        send_len = (size_t)rio_writen(fd, send_content, strlen(send_content));
-        if(send_len != strlen(send_content)){
-            perror("Send content failed");
+
+        // char send_content[] = "I have receiced this.";
+        // send_len = (size_t)rio_writen(fd, send_content, strlen(send_content));
+        // if(send_len != strlen(send_content)){
+        //     perror("Send content failed");
+        //     return ANALYSIS_ERROR;
+        // }
+
+        int src_fd = open(file_name.c_str(), O_RDONLY, 0);
+        char *src_addr = static_cast<char *>(mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, src_fd, 0));
+        close(src_fd);
+
+        //send file and check complete
+        send_len = rio_writen(fd, src_addr, sbuf.st_size);//return a size_t var.
+        if(send_len != sbuf.st_size){//the signed int to size_t maybe wrong?
+            if (send_len == -1)
+            {
+                cout << "Send file failed because client closed" << endl;
+                state = STATE_CLOSE;
+                return ANALYSIS_ERROR;
+            }
+            perror("Send file failed");
             return ANALYSIS_ERROR;
         }
-        cout << "content size == " << content.size() << endl;
-        vector<char> data(content.begin(), content.end());
-        Mat test = imdecode(data, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
-        imwrite("receive.bmp", test);
+        munmap(src_addr, sbuf.st_size);
+        // vector<char> data(content.begin(), content.end());
+        // Mat test = imdecode(data, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
+        // imwrite("receive.bmp", test);
+
         return ANALYSIS_SUCCESS;
     }
     else if (method == METHOD_GET)
     {
+        //cout << content << endl;
         char header[MAX_BUFF];
         sprintf(header, "HTTP/1.1 %d %s\r\n", 200, "OK");
         if(headers.find("Connection") != headers.end() && headers["Connection"] == "keep-alive")
@@ -501,6 +575,9 @@ int Solver::analysisRequest()
             sprintf(header, "%sConnection: keep-alive\r\n", header);
             sprintf(header, "%sKeep-Alive: timeout=%d\r\n", header, EPOLL_WAIT_TIME);
         }
+
+        file_name = webfile + file_name;
+        //cout << file_name << endl;
         int dot_pos = file_name.find('.');
         const char *filetype;
         if(dot_pos < 0){
@@ -521,12 +598,12 @@ int Solver::analysisRequest()
         sprintf(header, "%s\r\n", header);
         size_t send_len = (size_t)rio_writen(fd, header, strlen(header));
         if(send_len != strlen(header)){
-            if (send_len == -1)
-            {
-                cout << "Send header failed because client closed" << endl;
-                state = STATE_CLOSE;
-                return ANALYSIS_ERROR;
-            }
+            // if (send_len == -1)
+            // {
+            //     cout << "Send header failed because client closed" << endl;
+            //     state = STATE_CLOSE;
+            //     return ANALYSIS_ERROR;
+            // }
             perror("Send header failed");
             return ANALYSIS_ERROR;
         }

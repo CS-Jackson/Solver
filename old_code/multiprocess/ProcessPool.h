@@ -16,6 +16,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <iostream>
 
 class process
 {
@@ -208,6 +209,8 @@ void processpool<T>::run_child()
                 int sig;
                 char signals[1024];
                 ret = recv(sig_pipefd[0], signals, sizeof(signals), 0);
+                std::cout << "child ret: " << ret << std::endl;
+                //printf("%d\n", signals);
                 if(ret <= 0) {
                     continue;
                 }
@@ -218,12 +221,14 @@ void processpool<T>::run_child()
                                 pid_t pid;
                                 int stat;
                                 while( (pid = waitpid(-1, &stat, WNOHANG)) > 0) {
+                                    printf("subProcess using waitpid()!\n");//For CGIServer.
                                     continue;
                                 }
                                 break;
                             }
                             case SIGTERM:
                             case SIGINT: {
+                                printf("subProcess is interupted.\n");
                                 m_stop = true;
                                 break;
                             }
@@ -284,6 +289,8 @@ void processpool<T>::run_parent()
                 int sig;
                 char signals[1024];
                 ret = recv(sig_pipefd[0], signals, sizeof(signals), 0);
+                std::cout << "parent ret: " << ret << std::endl;
+                //printf("%d\n", signals);
                 if(ret <= 0) { continue; }
                 else {
                     for(int i = 0; i< ret; ++i) {
@@ -292,15 +299,16 @@ void processpool<T>::run_parent()
                                 pid_t pid;
                                 int stat;
                                 while( (pid = waitpid(-1, &stat, WNOHANG)) > 0) {
-                                    for(int i = 0; i < m_process_number; ++i) {
-                                        printf("child %d join\n", i);
-                                        close(m_sub_process[i].m_pipefd[0]);
-                                        m_sub_process[i].m_pid = -1;
-                                    }
+                                    printf("child %d join\n", pid);
+                                    
+                                }
+                                for(int j = 0; j < m_process_number; ++j) {
+                                    close(m_sub_process[j].m_pipefd[0]);
+                                    m_sub_process[j].m_pid = -1;
                                 }
                                 m_stop = true;
-                                for(int i = 0; i < m_process_number; ++i) {
-                                    if( m_sub_process[i].m_pid != -1) {
+                                for(int j = 0; j < m_process_number; ++j) {
+                                    if( m_sub_process[j].m_pid != -1) {
                                         m_stop = false;
                                     }
                                 }
@@ -309,8 +317,8 @@ void processpool<T>::run_parent()
                             case SIGTERM:
                             case SIGINT: {
                                 printf("kill all the child now\n");
-                                for(int i = 0; i < m_process_number; ++i) {
-                                    int pid = m_sub_process[i].m_pid;
+                                for(int j = 0; j < m_process_number; ++j) {
+                                    int pid = m_sub_process[j].m_pid;
                                     if(pid != -1) {
                                         kill(pid, SIGTERM);
                                     }

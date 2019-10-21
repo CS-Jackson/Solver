@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to Solver!</title>
+<script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js">
+</script>
+
+<script>
+    $(document).ready(function(){
+        $("#button1").click(function(){
+            $("#div1").load("demo_text.txt");
+        });
+    });
+</script>
+<script>
+        $(document).ready(function(){
+            $("#button2").click(function(){
+                $.getJSON("jsontest.txt",function(result){
+                    $.each(result, function(i, field){
+                        $("#div2").append("<li>" + field["optionValue"] + "</li>");
+                    });
+                });
+            });
+        });
+        </script>
+<script>
+    $(document).ready(function() {
+        $("#posttest").click(function(){
+            $.post("poem.html", {
+                road:"mother",
+                wood:"father",
+                made:"son", different:"daughter"
+            }
+            , function(){
+                // alert("数据: \n" + data + "\n状态: " + status);
+                var fm=document.getElementById("fm");
+                fm.submit();
+            }
+            )
+        })
+    })
+</script>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to Solver!</h1>
+<p>The Solver web server is builded for learning. </p>
+
+<p>For code please refer to
+<a href="https://github.com/CS-Jackson/Solver">Solver</a>.<br/>
+
+<p><em>Thank you for testing.</em></p>
+
+<div id="div1"><h2>Using jQuery AJAX change the text</h2></div>
+<button id="button1">access outside text</button>
+
+<div id="div2"><h2>testing json data</h2></div>
+<button id="button2">
+    get json test
+</button>
+
+<h1>Enter terms below.</h1>
+<form method="post" action="poem.html"  id="fm">
+
+    </form>
+        <!-- <form method="POST" action="/poem.html">
+        <p>username<br><input type="text" name="username"></p>
+        <input type="submit" value="login">
+        </form>
+
+        <form method="POST" action="/poem.html">
+        <p>Hyperlink<br><input type="text" name="Hyperlink"></p>
+        <p>Hyoername<br><input type="text" name="Hyberlink"></p>
+        <p>lock<br><input type="text" name="lock"></p>
+        <input type="submit" value="storage">
+        </form>
+
+        <form method="POST" action="/poem.html" enctype="multipart/form-data">
+        <input type="submit" value="check your link">
+        </form> -->
+<button id="posttest">Klick this to post</button>
+</body>
+</html>

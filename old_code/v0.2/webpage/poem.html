@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+    <head><title>Poem Maker Pro</title></head>
+    <script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js">
+    </script>
+    <script>
+        $(document).ready(function(){
+            $.getJSON("poemjson.txt", function(data){
+                $("#road").text(data[0]["optionValue"]);
+                $("#wood").text(data[1]["optionValue"]);
+                $("#made").text(data[2]["optionValue"]);
+                $("#difference").text(data[3]["optionValue"]);
+        });
+    });
+    </script>
+    <body>
+        <h1>Your poem</h1>
+        <p>Two <p id="road">replace1</p> diverged in a <p id="wood">replace2</p>, and I-<br>
+        I took the one less travelled by,<br>
+        And that has <p id="made">replace3</p> all the <p id="difference">replace4</p>.</p>
+    </body>
+</html>
