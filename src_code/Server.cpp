@@ -8,7 +8,7 @@
 Server::Server(EventLoop *loop, int ProcessNum, int port)
 : loop_(loop), ProcessNum_(ProcessNum), 
   eventLoopProcessPool_(new EventLoopProcesspool(loop_, ProcessNum)),
-  started_(false), acceptChannel_(new Channel(loop_)), port_(port), sub_process_fd(-1),
+  started_(false), acceptChannel_(new Channel(loop_)), sub_process_fd(-1), port_(port), 
   listenFd_(socket_bind_listen(port_))
 {
     acceptChannel_->setFd(listenFd_);

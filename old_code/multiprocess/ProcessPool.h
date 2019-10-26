@@ -208,9 +208,10 @@ void processpool<T>::run_child()
             else if( (sockfd == sig_pipefd[0]) && (events[i].events & EPOLLIN)) {
                 int sig;
                 char signals[1024];
+                memset(signals, '\0', 1024);
                 ret = recv(sig_pipefd[0], signals, sizeof(signals), 0);
                 std::cout << "child ret: " << ret << std::endl;
-                //printf("%d\n", signals);
+                printf("%d\n", signals[ret-1]);
                 if(ret <= 0) {
                     continue;
                 }
@@ -288,9 +289,10 @@ void processpool<T>::run_parent()
             else if( (sockfd == sig_pipefd[0]) && (events[i].events & EPOLLIN)) {
                 int sig;
                 char signals[1024];
+                memset(signals, '\0', 1024);
                 ret = recv(sig_pipefd[0], signals, sizeof(signals), 0);
                 std::cout << "parent ret: " << ret << std::endl;
-                //printf("%d\n", signals);
+                printf("%d\n", signals[ret-1]);
                 if(ret <= 0) { continue; }
                 else {
                     for(int i = 0; i< ret; ++i) {
@@ -300,11 +302,12 @@ void processpool<T>::run_parent()
                                 int stat;
                                 while( (pid = waitpid(-1, &stat, WNOHANG)) > 0) {
                                     printf("child %d join\n", pid);
-                                    
-                                }
-                                for(int j = 0; j < m_process_number; ++j) {
-                                    close(m_sub_process[j].m_pipefd[0]);
-                                    m_sub_process[j].m_pid = -1;
+                                    for(int j = 0; j < m_process_number; ++j) {
+                                        if(pid == m_sub_process[j].m_pid) {
+                                            close(m_sub_process[j].m_pipefd[0]);
+                                            m_sub_process[j].m_pid = -1;
+                                        }
+                                    }
                                 }
                                 m_stop = true;
                                 for(int j = 0; j < m_process_number; ++j) {

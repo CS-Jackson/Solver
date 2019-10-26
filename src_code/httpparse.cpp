@@ -1,13 +1,6 @@
+
 #include "httpparse.h"
-#include "time.h"
-#include "subProcess.h"
-#include "Util.h"
 #include "EventLoop.h"
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <iostream>
-using namespace std;
 
 pthread_once_t MimeType::once_control = PTHREAD_ONCE_INIT;
 std::unordered_map<std::string, std::string> MimeType::mime;

@@ -1,3 +1,4 @@
+#pragma once
 #include "subProcess.h"
 #include "EventLoop.h"
 #include <functional>
@@ -24,7 +25,7 @@ class EventLoopProcesspool
 {
 public:
     EventLoopProcesspool(EventLoop *loop, int ProcessNum) 
-    : baseloop_(loop), started_(false), ProcessNum_(ProcessNum), next_(0), m_stop(false)
+    : baseloop_(loop), ProcessNum_(ProcessNum), next_(0), m_stop(false), started_(false)
     {
         if(ProcessNum_ <= 0 || ProcessNum_ > MAX_PROCESS_NUMBER) {
             ProcessNum_ = MAX_PROCESS_NUMBER;
@@ -36,9 +37,9 @@ public:
         std::cout << "~EventLoopProcesspool()" << std::endl;
     }
     void run();
-    void setListenfd(int listen_fd) { listen_fd_ = listen_fd;}
+    //void setListenfd(int listen_fd) { listen_fd_ = listen_fd;}
     int getNextprocess();
-    void set_acceptfd_subprocess(int accept_fd);
+    //void set_acceptfd_subprocess(int accept_fd);
 
 private:
     void run_parent();
@@ -47,18 +48,18 @@ private:
 private:
     EventLoop* baseloop_;
     int ProcessNum_;
-    int listen_fd_;
-    int sig_pipe[2];
-    SP_Channel sig_channel;
-    std::vector<std::unique_ptr<process>> processes;
+    //int listen_fd_;
     int next_;  //choose which sub_process to work
     bool m_stop;
     bool started_;
+    int sig_pipe[2];
+    SP_Channel sig_channel;
+    static std::vector<std::unique_ptr<process>> processes;
     static const int MAX_PROCESS_NUMBER = 4;
     static const int USER_PER_PROCESS = 65536;
     static const int MAX_EVENT_NUMBER = 10000;
 
-    void sig_handler(int sig)//wait for children.
+    static void sig_handler(int sig)//wait for children.
     {
         // int save_errno = errno;
         // int msg = sig;
@@ -69,14 +70,14 @@ private:
       
         while((pid = waitpid(-1, &stat, WNOHANG)) > 0){
             printf("child %d terminated\n", pid);
-        }
-        for(int i = 0; i < processes.size(); ++i) {
-            if(processes[i]->m_pid == pid) {
-                printf("child %d join\n", i);
-                close(processes[i]->m_pipefd);
-                processes[i]->m_pid = -1;
+            for(int i = 0; i < processes.size(); ++i) {//Warning: signed compared with unsigned.
+                if(processes[i]->m_pid == pid) {
+                    close(processes[i]->m_pipefd);
+                    processes[i]->m_pid = -1;
+                }
             }
         }
+        
         return;
     }
 

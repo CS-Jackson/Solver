@@ -1,5 +1,7 @@
 #include "EventLoopProcessPool.h"
 
+std::vector<std::unique_ptr<process>> EventLoopProcesspool::processes;
+
 void EventLoopProcesspool::run()
 {
     //init the Pool
@@ -15,13 +17,17 @@ void EventLoopProcesspool::run()
                     std::cerr << "error fork" << std::endl;
                     break;
                 case 0:  // child
-                    close(listen_fd_);
-                    close(sockfd[0]);
-                    // dup2(sockfd[1], STDERR_FILENO);
-                    int sub_pipefd = sockfd[1];
-                    // setSocketNonBlocking(sub_pipefd);
-                    run_child(i, getpid(), sub_pipefd);
-                    break;
+                    //close(listen_fd_);
+                    {
+                        close(sockfd[0]);
+                        // dup2(sockfd[1], STDERR_FILENO);
+                        int sub_pipefd = sockfd[1];
+                        // setSocketNonBlocking(sub_pipefd);
+                        run_child(i, getpid(), sub_pipefd);
+                        close(sub_pipefd);
+                        return ;
+                        break;
+                    }
 
                 default:  // parent
                     break;
@@ -47,11 +53,12 @@ void EventLoopProcesspool::run_child(int idx, pid_t pid, int sockpair)
 {
     EventLoop *loop = new EventLoop(sockpair);
     loop->loop();
+    delete loop;
 }
 
 void EventLoopProcesspool::run_parent()
 {
-    addsig(SIGCHLD, this->sig_handler);
+    addsig(SIGCHLD, &EventLoopProcesspool::sig_handler);
 }
 
 // EventLoopProcesspool::EventLoopProcesspool(int listenfd, int process_number) 

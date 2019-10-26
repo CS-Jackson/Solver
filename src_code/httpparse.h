@@ -1,11 +1,22 @@
+#pragma once
+#include "subProcess.h"
 #include "Timer.h"
+#include "Util.h"
 #include <string>
+#include <string.h>
+#include <time.h>
+#include <pthread.h>
 #include <unordered_map>
 #include <map>
 #include <memory>
 #include <sys/epoll.h>
 #include <functional>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <iostream>
+using namespace std;
 
 class EventLoop;
 class mytimer;
@@ -87,7 +98,6 @@ public:
 private:
     static pthread_once_t once_control;
 };
-
 
 class Solver: public std::enable_shared_from_this<Solver>
 {

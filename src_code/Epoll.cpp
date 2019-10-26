@@ -1,6 +1,5 @@
 #include "Epoll.h"
 #include "Util.h"
-#include <sys/epoll.h>
 #include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -15,9 +14,8 @@
 const int EVENTSNUM = 4096;
 const int EPOLLWAIT_TIME = 10000;
 
-typedef std::shared_ptr<Channel> SP_Channel;
 
-Epoll::Epoll(): epollFd_(epoll_create1(EPOLL_CLOEXEC)), events_(EVENTSNUM)
+Epoll::Epoll(): epollFd_(epoll_create1(EPOLL_CLOEXEC)), events_(EVENTSNUM), timerManager_()
 {
     assert(epollFd_ > 0);
 }

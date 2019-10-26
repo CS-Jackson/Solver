@@ -4,7 +4,6 @@
 #include "EventLoopProcessPool.h"
 #include <memory>
 
-
 class Server
 {
 public:

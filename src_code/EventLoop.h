@@ -1,18 +1,21 @@
-#include "subProcess.h"
+#pragma once
 #include "Epoll.h"
+#include "subProcess.h"
 #include "Util.h"
+#include <unistd.h>
 #include <memory>
 #include <vector>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <assert.h>
 
+
 class EventLoop
 {
 typedef std::function<void()> Functor;
 private:
     bool looping_;
-    std::shared_ptr< Epoll > poller_;
+    std::shared_ptr<Epoll> poller_;
     int wakeupFd_;
 
     bool quit_;
