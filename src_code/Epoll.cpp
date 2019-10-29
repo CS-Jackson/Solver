@@ -89,7 +89,7 @@ void Epoll::add_timer(SP_Channel request, int timeout)
 {
     std::shared_ptr<Solver> t = request->getHolder();
     if(t) timerManager_.addTimer(t, timeout);
-    else std::cout << "timer add fall" << std::endl;
+    else std::cout << "timer add fail" << std::endl;
 }
 
 std::vector<SP_Channel> Epoll::getEventsRequest(int events_num)

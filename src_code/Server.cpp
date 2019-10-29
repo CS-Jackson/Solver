@@ -39,7 +39,7 @@ void Server::handNewConn()
     int accept_fd = 0;
     while( (accept_fd = accept(listenFd_, (struct sockaddr*)&client_addr, &client_addr_len)) > 0) {
 
-        // cout << "new connection" << endl;
+        cout << "new connection" << endl;
         // cout << inet_ntoa(client_addr.sin_addr) << endl;
         // cout << ntohs(client_addr.sin_port) << endl;
         if(accept_fd >= MAXFDS) {
@@ -66,6 +66,7 @@ void Server::handTransConn(int fd_to_send)
         std::cout << "Wrong fd to trans" << std::endl;
         abort();
     }
+    cout << "Sending fd " << endl;
     struct iovec iov[1];
     struct msghdr msg;
     char buf[0];
@@ -85,4 +86,5 @@ void Server::handTransConn(int fd_to_send)
     msg.msg_control = &cm;
     msg.msg_controllen = CONTROL_LEN;
     sendmsg(sub_process_fd, &msg, 0);
+    cout << "Done send" << endl;
 }

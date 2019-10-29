@@ -55,6 +55,6 @@ public:
     }
     void addToPoller(std::shared_ptr<Channel> channel, int timeout = 0)
     {
-        poller_->add_timer(channel, timeout);
+        poller_->epoll_add(channel, timeout);
     }
 };

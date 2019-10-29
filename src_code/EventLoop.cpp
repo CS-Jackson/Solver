@@ -21,8 +21,9 @@ EventLoop::EventLoop(int a)
 :   looping_(false),
     poller_(new Epoll()),
     wakeupFd_(a),
-    quit_(false), process_Id(getpid()),
+    quit_(false), 
     eventHandling_(false),
+    process_Id(getpid()),
     callingPendingFunctors_(false),
     pwakeupChannel_(new Channel(this))
 {
@@ -64,6 +65,7 @@ EventLoop::~EventLoop()
 
 void EventLoop::handleRead()
 {
+    cout << "Recving fd " << endl;
     struct iovec iov[1];
     struct msghdr msg;
     char buf[0];
@@ -85,6 +87,7 @@ void EventLoop::handleRead()
     req_info->getChannel()->setHolder(req_info);
     QueueInLoop(std::bind(&Solver::newEvent, req_info));
     //pwakeupChannel_->setEvents(EPOLLIN | EPOLLET | EPOLLONESHOT);
+    cout << "Done recv" << endl;
     pwakeupChannel_->setEvents(EPOLLIN | EPOLLET);
 }
 
