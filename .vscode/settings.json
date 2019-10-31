@@ -52,6 +52,10 @@
         "future": "cpp",
         "mutex": "cpp",
         "bitset": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "csignal": "cpp",
+        "codecvt": "cpp",
+        "optional": "cpp",
+        "string_view": "cpp"
     }
 }

@@ -1,7 +1,7 @@
 #include "time_heap.h"
 
 
-time_heap::time_heap( int cap ) throw ( std::exception )
+time_heap::time_heap( int cap )
         : capacity( cap ), cur_size( 0 )
 {
 	array = new heap_timer* [capacity];
@@ -14,7 +14,7 @@ time_heap::time_heap( int cap ) throw ( std::exception )
         array[i] = NULL;
     }
 }
-time_heap::time_heap( heap_timer** init_array, int size, int capacity ) throw ( std::exception )
+time_heap::time_heap( heap_timer** init_array, int size, int capacity ) 
         : cur_size( size ), capacity( capacity )
 {
         if ( capacity < size )
@@ -51,7 +51,7 @@ time_heap::~time_heap()
     delete [] array; 
 }
 
-void time_heap::add_timer( heap_timer* timer ) throw ( std::exception )
+void time_heap::add_timer( heap_timer* timer )
 {
     if( !timer )
     {
@@ -151,7 +151,7 @@ void time_heap::percolate_down( int hole )
         }
         array[hole] = temp;
     }
-void time_heap::resize() throw ( std::exception )
+void time_heap::resize()
     {
         heap_timer** temp = new heap_timer* [2*capacity];
         for( int i = 0; i < 2*capacity; ++i )
