@@ -45,6 +45,7 @@ bool MyDB::exeSQL(std::string sql)
     if(mysql_query(connection, sql.c_str()))
     {
         std::cout << "Query Error:" << mysql_error(connection);
+        return false;
     }
     else {
         result = mysql_use_result(connection); //获取结果集
@@ -65,4 +66,5 @@ bool MyDB::exeSQL(std::string sql)
             std::cout << std::endl;
         }
     }
+    return true;
 }
